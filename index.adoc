@@ -1,17 +1,409 @@
-= Title Slide
+= 使用Kotlin实现一个DSL（上）
+:date: 2021-06-16
+:icons: font
+:revealjs_center: true
+:customcss: css/main.css
+:source-highlighter: highlightjs
+:highlightjs-languages: groovy
+:highlightjs-theme: node_modules/highlightjs/styles/atom-one-dark.css
 
-== Slide One
+== DSL(domain-specific language)
 
-* Foo
-* Bar
-* World
+*领域特定语言* 指的是专注于某个应用程序领域的计算机语言。
 
-== Slide Two
+=== !
 
-A Great Story
+DSL又分为内部DSL和外部DSL。
 
-[.notes]
---
-* tell anecdote
-* make a point
---
+=== !
+
+.SQL
+[source, sql]
+----
+SELECT *
+FROM AUTHOR
+LEFT OUTER JOIN (
+  BOOK JOIN BOOK_TO_BOOK_STORE
+       ON BOOK_TO_BOOK_STORE.BOOK_ID = BOOK.ID
+)
+----
+
+.Java(JOOQ)
+[source, java]
+----
+create.select()
+      .from(AUTHOR
+      .leftOuterJoin(BOOK
+        .join(BOOK_TO_BOOK_STORE)
+        .on(BOOK_TO_BOOK_STORE.BOOK_ID.eq(BOOK.ID)))
+      .on(BOOK.AUTHOR_ID.eq(AUTHOR.ID)))
+      .fetch();
+----
+
+=== !
+
+.CSS
+[source, css]
+----
+body {
+   overflow: hidden;
+   background-color: #000000;
+   background-image: url(images/bg.gif);
+   background-repeat: no-repeat;
+   background-position: left top;
+}
+----
+
+.JavaScript(Aphrodite)
+[source, javascript]
+----
+const styles = StyleSheet.create({
+    red: {
+        overflow: overflowStrategy,
+        backgroundColor: getColor(),
+        backgroundImage: `url(${imagedir}/bg.gif)`,
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'left top'
+    }
+});
+----
+
+=== !
+
+.XML(Maven)
+[source, xml]
+----
+<dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+</dependencies>
+----
+
+.Groovy(Gradle)
+[source, groovy]
+----
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+  implementation 'org.springframework.boot:spring-boot-starter-webflux'
+}
+----
+
+=== !
+
+.还有很多
+[%step]
+* HTML
+* Markdown
+* Regex
+* JSX
+* Makefile 
+* SpEL
+* ...
+
+== Kotlin简介
+
+Kotlin 是一种现代且成熟的编程语言，旨在让开发人员更快乐。 它简洁、安全、可与 Java 和其他语言互操作，并提供多种方法来在多个平台之间重用代码以进行高效编程。
+
+== 要用到的语言特性
+
+* 简化的Getter & Setter
+* 扩展函数
+* 扩展属性
+* Lambda表达式和高阶函数
+* 运算符重载
+
+== 简化的Getter和Setter
+
+.Java
+[source, java]
+----
+user.getUsername();
+----
+
+.Kotlin
+[source, kotlin]
+----
+user.username()
+// 实际上还是调用
+user.getUsername();
+----
+
+== 扩展函数
+
+.Kotlin
+[source, kotlin]
+----
+fun String.lastChar(): Char = get(length - 1)
+
+fun main() {
+    println("hello world".lastChar());
+}
+----
+
+.Java
+[source, java]
+----
+public static final char lastchar(String str) {
+    return str.get(str.length - 1);
+}
+
+public stativ void main(String[] args) {
+    System.out.println(lastchar("hello world"))
+}
+----
+
+== 扩展属性
+
+.Kotlin
+[source, kotlin]
+----
+val Int.days: Period
+    get() = Period.ofDays(this)
+val Period.ago: LocalDate
+    get() = LocalDate.now() - this
+
+fun main() {
+    println(3.days.ago) // --> 2021-06-18
+}
+----
+
+.Java
+[source, kotlin]
+----
+public static final char getDays(Int i) {
+    return Period.ofDays(i);
+}
+
+public static final char getAgo(Period period) {
+    return LocalDate.now() - period;
+}
+
+public stativ void main(String[] args) {
+	System.out.println(getAgo(getDays(3)));
+}
+----
+
+== Lambda表达式和高阶函数
+
+在 `Java 8` 之后函数成为了一等公民，我们便可以像变量一样对待函数了。
+
+=== (匿名内部类) -> 函数式接口+Lambda
+
+函数式接口(Functional Interface)就是一个有且仅有一个抽象方法的接口。（但是可以有多个非抽象方法）。
+
+[source, java]
+----
+// Runnable 接口
+@FunctionalInterface
+public interface Runnable {
+    public abstract void run();
+}
+
+// Java7 匿名内部类写法
+new Thread(new Runnable(){ // 接口名
+    @Override
+    public void run(){ // 方法名
+        System.out.println("hello world");
+    }
+}).start();
+----
+
+[source, java]
+----
+// Java8 函数式接口和Lambda表达式
+new Thread(
+    () -> System.out.println("hello world");
+).start();
+----
+
+=== Lambda表达式语法
+
+[source, java]
+----
+// (可选的参数列表) -> 表达式
+() -> 2
+(String str) -> str.length()
+str -> str.length()
+
+// (可选的参数列表) -> { 语句; }
+() -> { System.out.println("hello world"); }
+
+Function<String, Integer> f1 = name -> { 
+    System.out.println("hello " + name);
+    return name.length(); 
+}
+----
+
+=== JDK中的几个函数式接口
+
+[source, java]
+----
+public interface Comparator<T> {
+    int compare(T o1, T o2);
+}
+// compare：(T, T) -> int，两个泛型T类型的入参，返回int类型
+//（User u1, User u2） -> u1.getAge - u2.getAge
+----
+
+[source, java]
+----
+public interface Runnable {
+    void run();
+}
+// run：() -> void，无入参，无返回值
+// () -> System.out.println("hello world");
+----
+
+[source, java]
+----
+public interface Callable<V> {
+    V call() throws Exception;
+}
+// () -> V，无入参，返回一个泛型V类型的对象
+// () -> new User()
+----
+
+=== 自定义一个函数式接口
+
+[source, java]
+----
+@FunctionalInterface
+interface Counter {
+    abstract Integer count(String str);
+}
+----
+
+[source, java]
+----
+public static void main(String[] args) {
+    worker("Hello", str -> str.length()); // --> 5
+
+    Counter lCounter = str -> Arrays.stream(str.split(""))
+                .filter(c -> c.equals("l"))
+                .mapToInt(i -> 1)
+                .sum();
+    worker("Hello", lCounter); // --> 2
+}
+
+// 高阶函数
+private static void worker(String str, Counter counter) {
+    System.out.println(counter.count(str));
+}
+----
+
+== 几个比较流行的库/框架
+
+=== Ktor 
+
+Krot是一个高性能Web开发框架，支持Kotlin Coroutines、DSL 等特性
+[source, kotlin]
+----
+fun main() {
+    embeddedServer(Netty, port = 8000) {
+        routing {
+            get ("/") {
+                call.respondText("Hello, world!")
+            }
+
+	    post ("/login") {
+	        ...
+	    }
+        }
+    }.start(wait = true)
+}
+----
+
+=== Exposed
+
+一个Kotlin ORM框架，提供了类型安全的SQL DSL和轻量级DAO实现
+
+[source, kotlin]
+----
+val id = StarWarsFilms.insertAndGetId {
+  it[name] = "The Last Jedi"
+  it[sequelId] = 8
+  it[director] = "Rian Johnson"
+}
+----
+
+[source, kotlin]
+----
+val directors = StarWarsFilms.
+   slice(StarWarsFilms.director).
+   select { StarWarsFilms.sequelId less 5 }.
+   withDistinct().map {
+      it[StarWarsFilms.director]
+   }
+----
+
+[source, kotlin]
+----
+StarWarsFilms.update ({ StarWarsFilms.sequelId eq 8 }) {
+  it[StarWarsFilms.name] = "Episode VIII – The Last Jedi"
+}
+StarWarsFilms.deleteWhere { StarWarsFilms.sequelId eq 8 }
+----
+
+[source, kotlin]
+----
+(Players innerJoin StarWarsFilms)
+  .slice(Players.name.count(), StarWarsFilms.name)
+  .select { StarWarsFilms.sequelId eq Players.sequelId }
+  .groupBy(StarWarsFilms.name)
+----
+
+=== Kotest
+
+一个多平台测试框架、断言库和属性测试库
+
+[source, kotlin]
+----
+name shouldBe "sam"
+user.name shouldNotBe null
+
+"hello foo" should containFoo()
+"hello bar" shouldNot containFoo()
+----
+
+== 使用Kotlin实现类型安全的DSL
+
+[source, kotlin]
+----
+html {
+    head {
+        title { +"Kotlin DSL" }
+    }
+    body {
+        h1 { +"使用Kotlin实现类型安全的DSL" }
+        a(href = "http://kotlinlang.org") { +"Kotlin" }
+        p {
+            for (arg in args)
+                +arg
+        }
+    }
+}
+----
+
+[source, html]
+----
+<html>
+    <head>
+        <title>Kotlin DSL</title>
+    </head>
+    <body>
+        <h1>使用Kotlin实现类型安全的DSL</h1>
+        <a href="http://kotlinlang.org">Kotlin</a>
+        <p>
+            ...
+        </p>
+    </body>
+</html>
+----
+
+
